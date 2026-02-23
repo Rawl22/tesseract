@@ -14,12 +14,65 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt update
-          sudo apt install -y tesseract-ocr poppler-utils
+          sudo apt install -y poppler-utils
 
       - name: Install Python dependencies
         run: |
           python3 -m pip install --upgrade pip
-          pip install pymupdf pdfplumber pillow pytesseract deep-translator reportlab
+          pip install pymupdf deep-translator
 
-      - name: Ready
-        run: echo "Workflow base ready"
+      - name: Create translator script
+        run: |
+          cat << 'EOF' > translate.py
+          import fitz
+          import os
+          from deep_translator import GoogleTranslator
+
+          def is_math(text):
+              math_symbols = ["=", "+", "-", "\\", "{", "}", "^", "_"]
+              return any(sym in text for sym in math_symbols)
+
+          def translate_pdf(input_path, output_path):
+              doc = fitz.open(input_path)
+              translator = GoogleTranslator(source='auto', target='es')
+
+              new_doc = fitz.open()
+
+              for page in doc:
+                  new_page = new_doc.new_page(width=page.rect.width, height=page.rect.height)
+                  blocks = page.get_text("blocks")
+
+                  for b in blocks:
+                      x0, y0, x1, y1, text, *_ = b
+                      text = text.strip()
+                      if not text:
+                          continue
+
+                      if not is_math(text):
+                          try:
+                              text = translator.translate(text)
+                          except:
+                              pass
+
+                      new_page.insert_textbox(
+                          fitz.Rect(x0, y0, x1, y1),
+                          text,
+                          fontsize=11
+                      )
+
+              new_doc.save(output_path)
+
+          for file in os.listdir():
+              if file.lower().endswith(".pdf"):
+                  output = file.replace(".pdf", "_ES.pdf")
+                  translate_pdf(file, output)
+          EOF
+
+      - name: Run translation
+        run: python3 translate.py
+
+      - name: Upload translated PDFs
+        uses: actions/upload-artifact@v3
+        with:
+          name: translated-pdfs
+          path: "*_ES.pdf"
