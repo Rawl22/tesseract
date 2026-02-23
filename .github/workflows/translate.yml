@@ -9,7 +9,7 @@ jobs:
 
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install system dependencies
         run: |
@@ -35,7 +35,6 @@ jobs:
           def translate_pdf(input_path, output_path):
               doc = fitz.open(input_path)
               translator = GoogleTranslator(source='auto', target='es')
-
               new_doc = fitz.open()
 
               for page in doc:
@@ -72,7 +71,7 @@ jobs:
         run: python3 translate.py
 
       - name: Upload translated PDFs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: translated-pdfs
           path: "*_ES.pdf"
